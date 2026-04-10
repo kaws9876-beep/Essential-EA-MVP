@@ -37,6 +37,8 @@ Respond ONLY with valid JSON (no markdown, no extra text):
 }`;
 
   try {
+    console.log('🔑 OpenAI API Key present:', !!process.env.OPENAI_API_KEY);
+    console.log('🤖 Calling OpenAI API...');
     const response = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [
@@ -53,7 +55,9 @@ Respond ONLY with valid JSON (no markdown, no extra text):
       max_tokens: 300
     });
 
+    console.log('✓ OpenAI response received');
     const content = response.choices[0].message.content.trim();
+    console.log('📄 Response content:', content.substring(0, 100) + '...');
     
     // Remove markdown code blocks if present
     let jsonStr = content;
@@ -63,6 +67,7 @@ Respond ONLY with valid JSON (no markdown, no extra text):
       jsonStr = content.replace(/```\n?/g, '').trim();
     }
 
+    console.log('✓ JSON parsed successfully');
     const result = JSON.parse(jsonStr);
 
     // Validate result structure
