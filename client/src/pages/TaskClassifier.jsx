@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = 'https://essential-ea-app-production.up.railway.app';
 
 export default function TaskClassifier({ onBack }) {
   const [input, setInput] = useState('');
