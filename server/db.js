@@ -1,48 +1,26 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+// In-memory task storage (for MVP testing)
+// In production, replace with a real database like PostgreSQL or MongoDB
 
-const dbPath = path.join(__dirname, 'tasks.db');
-const db = new Database(dbPath);
+let tasks = [];
+let taskIdCounter = 1;
 
-console.log('Connected to SQLite database at', dbPath);
-
-// Initialize database schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    description TEXT NOT NULL,
-    classification TEXT NOT NULL,
-    emoji TEXT NOT NULL,
-    urgency TEXT NOT NULL,
-    reason TEXT NOT NULL,
-    recommendedAction TEXT NOT NULL,
-    confidence REAL NOT NULL,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-console.log('Tasks table ready');
+console.log('✓ In-memory database initialized');
 
 // Helper function to save a task
 function saveTask(taskData) {
   try {
-    const stmt = db.prepare(`
-      INSERT INTO tasks (description, classification, emoji, urgency, reason, recommendedAction, confidence)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
+    const task = {
+      id: taskIdCounter++,
+      ...taskData,
+      createdAt: new Date().toISOString()
+    };
     
-    const result = stmt.run(
-      taskData.description,
-      taskData.classification,
-      taskData.emoji,
-      taskData.urgency,
-      taskData.reason,
-      taskData.recommendedAction,
-      taskData.confidence
-    );
+    tasks.push(task);
+    console.log(`✓ Task saved (ID: ${task.id}, Total: ${tasks.length})`);
     
-    return { id: result.lastInsertRowid, ...taskData };
+    return task;
   } catch (error) {
+    console.error('❌ Error saving task:', error);
     throw error;
   }
 }
@@ -50,11 +28,12 @@ function saveTask(taskData) {
 // Helper function to get task history
 function getTaskHistory(limit = 50) {
   try {
-    const stmt = db.prepare(`
-      SELECT * FROM tasks ORDER BY createdAt DESC LIMIT ?
-    `);
-    return stmt.all(limit) || [];
+    // Return tasks in reverse order (newest first)
+    const history = tasks.slice(-limit).reverse();
+    console.log(`✓ Retrieved ${history.length} tasks from history`);
+    return history;
   } catch (error) {
+    console.error('❌ Error getting history:', error);
     throw error;
   }
 }
@@ -62,43 +41,34 @@ function getTaskHistory(limit = 50) {
 // Helper function to get statistics
 function getStats() {
   try {
-    const stmt = db.prepare(`
-      SELECT 
-        classification,
-        COUNT(*) as count,
-        AVG(confidence) as avgConfidence
-      FROM tasks
-      GROUP BY classification
-    `);
-    
-    const rows = stmt.all();
+    const crystalCount = tasks.filter(t => t.classification === 'crystal').length;
+    const bouncyCount = tasks.filter(t => t.classification === 'bouncy').length;
+    const avgConfidence = tasks.length > 0
+      ? (tasks.reduce((sum, t) => sum + (t.confidence || 0), 0) / tasks.length).toFixed(2)
+      : 0;
+
     const stats = {
-      crystal: 0,
-      bouncy: 0,
-      total: 0,
-      avgAccuracy: 0
+      totalTasks: tasks.length,
+      crystal: crystalCount,
+      bouncy: bouncyCount,
+      avgAccuracy: (parseFloat(avgConfidence) * 100).toFixed(1),
+      byUrgency: {
+        urgent: tasks.filter(t => t.urgency === 'urgent').length,
+        today: tasks.filter(t => t.urgency === 'today').length,
+        defer: tasks.filter(t => t.urgency === 'defer').length,
+        ea_owned: tasks.filter(t => t.urgency === 'ea_owned').length
+      }
     };
     
-    if (rows && rows.length > 0) {
-      rows.forEach(row => {
-        if (row.classification === 'crystal') {
-          stats.crystal = row.count;
-        } else if (row.classification === 'bouncy') {
-          stats.bouncy = row.count;
-        }
-      });
-      stats.total = stats.crystal + stats.bouncy;
-      stats.avgAccuracy = (rows.reduce((sum, r) => sum + r.avgConfidence, 0) / rows.length * 100).toFixed(1);
-    }
-    
+    console.log(`✓ Stats retrieved: ${stats.totalTasks} total, ${stats.crystal} crystal, ${stats.bouncy} bouncy`);
     return stats;
   } catch (error) {
+    console.error('❌ Error getting stats:', error);
     throw error;
   }
 }
 
 module.exports = {
-  db,
   saveTask,
   getTaskHistory,
   getStats
